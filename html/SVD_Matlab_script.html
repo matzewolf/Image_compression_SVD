@@ -1,0 +1,301 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>SVD_Matlab_script</title><meta name="generator" content="MATLAB 9.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2017-12-26"><meta name="DC.source" content="SVD_Matlab_script.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#2">Compression algorithm</a></li><li><a href="#3">Analysis of the algorithm</a></li><li><a href="#4">Relationship between selcted SVs and made error</a></li><li><a href="#5">Figures</a></li></ul></div><pre class="codeinput"><span class="comment">% Image Compression with Singular Value Decomposition (SVD).</span>
+<span class="comment">%   This script uses the SVD for Image Compression, analyses the algorithm</span>
+<span class="comment">%   (also with Information Theory) and visualizes the results.</span>
+
+close <span class="string">all</span>; clear; clc;
+</pre><h2 id="2">Compression algorithm</h2><pre class="codeinput"><span class="comment">% Original image matrix</span>
+Lena_org = imread(<span class="string">'lena.bmp'</span>); <span class="comment">% in uint8</span>
+Lena = double(Lena_org); <span class="comment">% in double</span>
+
+<span class="comment">% SVD on the image</span>
+[U,S,V] = svd(Lena);
+
+<span class="comment">% Extract Singular Values (SVs)</span>
+singvals = diag(S);
+
+<span class="comment">% Determine to be saved SVs</span>
+c = 0.01; <span class="comment">% change c to change quality</span>
+indices = find(singvals &gt;= c * singvals(1)); <span class="comment">% only SVs bigger than c times biggest SV</span>
+
+<span class="comment">% Truncate U,S,V</span>
+U_red = U(:,indices);
+S_red = S(indices,indices);
+V_red = V(:,indices);
+
+<span class="comment">% Calculate compressed image</span>
+USV_red = U_red * S_red * V_red';
+Lena_red = uint8(USV_red);
+
+<span class="comment">% Save compressed image</span>
+imwrite(Lena_red,<span class="string">'ReducedLena.bmp'</span>);
+</pre><h2 id="3">Analysis of the algorithm</h2><pre class="codeinput"><span class="comment">% Size of the image</span>
+m = size(Lena,1);
+n = size(Lena,2);
+storage = m*n;
+fprintf(<span class="string">'Size of image is %d px by %d px, i.e. uses %d px of storage.\n'</span>,m,n,storage);
+
+<span class="comment">% SVs and reduced storage</span>
+r = length(singvals); <span class="comment">% original number of SVs</span>
+r_red = length(indices); <span class="comment">% to be saved number of SVs</span>
+r_max = floor(m*n/(m+n+1)); <span class="comment">% maximum to be saved number of SVs for compression</span>
+storage_red = m*r_red + n*r_red + r_red;
+fprintf(<span class="string">'The smallest SV is chosen to be smaller than %d of the biggest SV.\n'</span>,c);
+fprintf(<span class="string">'Out of %d SVs, now only %d SVs are saved.\n'</span>,r,r_red);
+fprintf(<span class="string">'The maximum number of SVs for compression are %d SVs.\n'</span>,r_max);
+fprintf(<span class="string">'Thhe reduced storage now is %d px.\n'</span>,storage_red);
+
+<span class="comment">% Determine made error</span>
+error = 1 - sum(singvals(indices))/sum(singvals);
+fprintf(<span class="string">'The made error is %d.\n'</span>,error);
+errorImage = Lena_org - Lena_red;
+
+<span class="comment">% Entropy</span>
+entropy_org = entropy(Lena_org);
+entropy_red = entropy(Lena_red);
+</pre><pre class="codeoutput">Size of image is 512 px by 512 px, i.e. uses 262144 px of storage.
+The smallest SV is chosen to be smaller than 1.000000e-02 of the biggest SV.
+Out of 512 SVs, now only 53 SVs are saved.
+The maximum number of SVs for compression are 255 SVs.
+Thhe reduced storage now is 54325 px.
+The made error is 2.374273e-01.
+</pre><h2 id="4">Relationship between selcted SVs and made error</h2><pre class="codeinput">numSVals = 1:10:r;
+displayedError = [];
+
+<span class="keyword">for</span> i = numSVals
+    <span class="comment">% store S in a temporary matrix</span>
+    S_loop = S;
+    <span class="comment">% truncate S</span>
+    S_loop(i+1:end,:) = 0;
+    S_loop(:,i+1:end) = 0;
+    <span class="comment">% construct Image using truncated S</span>
+    Lena_loop = U*S_loop*V';
+    <span class="comment">% compute error</span>
+    error_loop = 1 - sum(diag(S_loop))/sum(diag(S));
+    <span class="comment">% add error to display vector</span>
+    displayedError = [displayedError, error_loop];
+<span class="keyword">end</span>
+</pre><h2 id="5">Figures</h2><pre class="codeinput">figure(<span class="string">'Name'</span>,<span class="string">'Visualizations'</span>,<span class="string">'units'</span>,<span class="string">'normalized'</span>,<span class="string">'outerposition'</span>,[0 0 1 1]);
+
+<span class="comment">% Original image</span>
+subplot(2,3,1)
+imshow(uint8(Lena))
+title(<span class="string">'Original image'</span>)
+
+<span class="comment">% Histogram of original image</span>
+subplot(2,3,2)
+imhist(Lena_org);
+title(<span class="string">'Histogram of original image'</span>)
+
+<span class="comment">% Compressed image</span>
+subplot(2,3,4)
+imshow(uint8(Lena_red))
+title(<span class="string">'Compressed image'</span>)
+
+<span class="comment">% Histogram of compressed image</span>
+subplot(2,3,5)
+imhist(Lena_red);
+title(<span class="string">'Histogram of compressed image'</span>)
+
+<span class="comment">% Error image</span>
+subplot(2,3,3)
+imshow(uint8(errorImage))
+title(<span class="string">'Error image'</span>)
+
+<span class="comment">% Compression error over saved SVs</span>
+subplot(2,3,6)
+plot(numSVals, displayedError)
+xlabel(<span class="string">'Number of saved Singular Values'</span>)
+ylabel(<span class="string">'Compression error'</span>)
+title(<span class="string">'Compression error over saved SVs'</span>)
+</pre><img vspace="5" hspace="5" src="SVD_Matlab_script_01.png" style="width:1267px;height:638px;" alt=""> <p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2017a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+% Image Compression with Singular Value Decomposition (SVD).
+%   This script uses the SVD for Image Compression, analyses the algorithm
+%   (also with Information Theory) and visualizes the results.
+
+close all; clear; clc;
+
+
+%% Compression algorithm
+
+% Original image matrix
+Lena_org = imread('lena.bmp'); % in uint8
+Lena = double(Lena_org); % in double
+
+% SVD on the image
+[U,S,V] = svd(Lena);
+
+% Extract Singular Values (SVs)
+singvals = diag(S);
+
+% Determine to be saved SVs
+c = 0.01; % change c to change quality
+indices = find(singvals >= c * singvals(1)); % only SVs bigger than c times biggest SV
+
+% Truncate U,S,V
+U_red = U(:,indices);
+S_red = S(indices,indices);
+V_red = V(:,indices);
+
+% Calculate compressed image
+USV_red = U_red * S_red * V_red';
+Lena_red = uint8(USV_red);
+
+% Save compressed image
+imwrite(Lena_red,'ReducedLena.bmp');
+
+
+%% Analysis of the algorithm
+
+% Size of the image
+m = size(Lena,1);
+n = size(Lena,2);
+storage = m*n;
+fprintf('Size of image is %d px by %d px, i.e. uses %d px of storage.\n',m,n,storage);
+
+% SVs and reduced storage
+r = length(singvals); % original number of SVs
+r_red = length(indices); % to be saved number of SVs
+r_max = floor(m*n/(m+n+1)); % maximum to be saved number of SVs for compression
+storage_red = m*r_red + n*r_red + r_red;
+fprintf('The smallest SV is chosen to be smaller than %d of the biggest SV.\n',c);
+fprintf('Out of %d SVs, now only %d SVs are saved.\n',r,r_red);
+fprintf('The maximum number of SVs for compression are %d SVs.\n',r_max);
+fprintf('Thhe reduced storage now is %d px.\n',storage_red);
+
+% Determine made error
+error = 1 - sum(singvals(indices))/sum(singvals);
+fprintf('The made error is %d.\n',error);
+errorImage = Lena_org - Lena_red;
+
+% Entropy
+entropy_org = entropy(Lena_org);
+entropy_red = entropy(Lena_red);
+
+
+%% Relationship between selcted SVs and made error
+
+numSVals = 1:10:r;
+displayedError = [];
+
+for i = numSVals
+    % store S in a temporary matrix
+    S_loop = S;
+    % truncate S
+    S_loop(i+1:end,:) = 0;
+    S_loop(:,i+1:end) = 0;
+    % construct Image using truncated S
+    Lena_loop = U*S_loop*V';
+    % compute error
+    error_loop = 1 - sum(diag(S_loop))/sum(diag(S));
+    % add error to display vector
+    displayedError = [displayedError, error_loop];
+end
+
+
+%% Figures
+
+figure('Name','Visualizations','units','normalized','outerposition',[0 0 1 1]);
+
+% Original image
+subplot(2,3,1)
+imshow(uint8(Lena))
+title('Original image')
+
+% Histogram of original image
+subplot(2,3,2)
+imhist(Lena_org);
+title('Histogram of original image')
+
+% Compressed image
+subplot(2,3,4)
+imshow(uint8(Lena_red))
+title('Compressed image')
+
+% Histogram of compressed image
+subplot(2,3,5)
+imhist(Lena_red);
+title('Histogram of compressed image')
+
+% Error image
+subplot(2,3,3)
+imshow(uint8(errorImage))
+title('Error image')
+
+% Compression error over saved SVs
+subplot(2,3,6)
+plot(numSVals, displayedError)
+xlabel('Number of saved Singular Values')
+ylabel('Compression error')
+title('Compression error over saved SVs')
+
+##### SOURCE END #####
+--></body></html>
