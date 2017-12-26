@@ -1,50 +1,68 @@
-close all
-clear all
-clc
+% Image Compression with Singular Value Decomposition (SVD).
+%   This script uses the SVD for Image Compression, analyses the algorithm
+%   (also with Information Theory) and visualizes the results.
 
-%% 1. Image of Lena
-Lena = double(imread('lena.bmp'));
-m = size(Lena,1)
-n = size(Lena,2)
-storage = m*n
+close all; clear; clc;
 
-%% 2. SVD on Lena
+
+%% Compression algorithm
+
+% Original image matrix
+Lena_org = imread('lena.bmp'); % in uint8
+Lena = double(Lena_org); % in double
+
+% SVD on the image
 [U,S,V] = svd(Lena);
 
-%% 3. Extract singular values
+% Extract Singular Values (SVs)
 singvals = diag(S);
-r = length(singvals)
 
-%% 4. Determine truncation of the U, S, V matrices
-c = 0.01 % change c to change quality
-indices = find(singvals >= c * singvals(1));
-r_red = length(indices)
-r_max = m*n/(m+n+1)
-storage_red = m*r_red + n*r_red + r_red
+% Determine to be saved SVs
+c = 0.01; % change c to change quality
+indices = find(singvals >= c * singvals(1)); % only SVs bigger than c times biggest SV
 
-%% 5. Truncate U, S, V matrices
+% Truncate U,S,V
 U_red = U(:,indices);
 S_red = S(indices,indices);
 V_red = V(:,indices);
 
-%% 6. Low-rank approximation of Lena
-Lena_red = U_red * S_red * V_red';
+% Calculate compressed image
+USV_red = U_red * S_red * V_red';
+Lena_red = uint8(USV_red);
 
-%% 7. Save and print result
-imwrite(uint8(Lena_red),'Reduced Lena.bmp');
-subplot(1,2,1)
-imshow(uint8(Lena))
-subplot(1,2,2)
-imshow(uint8(Lena_red))
-
-%% 8. Error
-error = 1 - sum(singvals(indices))/sum(singvals)
-errorImage = Lena - Lena_red;
-figure
-imshow(uint8(errorImage))
+% Save compressed image
+imwrite(Lena_red,'ReducedLena.bmp');
 
 
-%% REMARK: Relationship between selcted Singular Values and made error:
+%% Analysis of the algorithm
+
+% Size of the image
+m = size(Lena,1);
+n = size(Lena,2);
+storage = m*n;
+fprintf('Size of image is %d px by %d px, i.e. uses %d px of storage.\n',m,n,storage);
+
+% SVs and reduced storage
+r = length(singvals); % original number of SVs
+r_red = length(indices); % to be saved number of SVs
+r_max = floor(m*n/(m+n+1)); % maximum to be saved number of SVs for compression
+storage_red = m*r_red + n*r_red + r_red;
+fprintf('The smallest SV is chosen to be smaller than %d of the biggest SV.\n',c);
+fprintf('Out of %d SVs, now only %d SVs are saved.\n',r,r_red);
+fprintf('The maximum number of SVs for compression are %d SVs.\n',r_max);
+fprintf('Thhe reduced storage now is %d px.\n',storage_red);
+
+% Determine made error
+error = 1 - sum(singvals(indices))/sum(singvals);
+fprintf('The made error is %d.\n',error);
+errorImage = Lena_org - Lena_red;
+
+% Entropy
+entropy_org = entropy(Lena_org);
+entropy_red = entropy(Lena_red);
+
+
+%% Relationship between selcted SVs and made error
 
 numSVals = 1:10:r;
 displayedError = [];
@@ -63,7 +81,39 @@ for i = numSVals
     displayedError = [displayedError, error_loop];
 end
 
-figure
+
+%% Figures
+
+figure('Name','Visualizations','units','normalized','outerposition',[0 0 1 1]);
+
+% Original image
+subplot(2,3,1)
+imshow(uint8(Lena))
+title('Original image')
+
+% Histogram of original image
+subplot(2,3,2)
+imhist(Lena_org);
+title('Histogram of original image')
+
+% Compressed image
+subplot(2,3,4)
+imshow(uint8(Lena_red))
+title('Compressed image')
+
+% Histogram of compressed image
+subplot(2,3,5)
+imhist(Lena_red);
+title('Histogram of compressed image')
+
+% Error image
+subplot(2,3,3)
+imshow(uint8(errorImage))
+title('Error image')
+
+% Compression error over saved SVs
+subplot(2,3,6)
 plot(numSVals, displayedError)
 xlabel('Number of saved Singular Values')
 ylabel('Compression error')
+title('Compression error over saved SVs')
