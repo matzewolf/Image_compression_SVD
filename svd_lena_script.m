@@ -4,6 +4,7 @@
 
 close all; clear; clc;
 tic;
+COL = 256; % number of colors in uint8, so 2^8 = 256.
 
 
 %% Compression
@@ -16,7 +17,7 @@ Lena = double(Lena_org); % in double
 compr = 0.01; % change compr to change quality
 tic;
 Lena_red = uint8(svd_compress(Lena,compr));
-func_time = toc;
+func_time = toc; % compression function execution time
 fprintf('Execution time of svd_compress: %d seconds.\n',func_time);
 
 % Save compressed image
@@ -73,11 +74,6 @@ error = 1 - sum(singvals(indices))/sum(singvals);
 fprintf('Made error: %d.\n',error);
 errorImage = Lena_org - Lena_red;
 
-% Histograms
-[dist_org, bin_org] = imhist(Lena_org);
-[dist_red, bin_red] = imhist(Lena_red);
-[dist_err, bin_err] = imhist(errorImage);
-
 % Entropy
 entropy_org = entropy(Lena_org);
 fprintf('Entropy of original image: %d bit.\n',entropy_org);
@@ -86,11 +82,15 @@ fprintf('Entropy of compressed image: %d bit.\n',entropy_red);
 entropy_err = entropy(errorImage);
 fprintf('Entropy of error image: %d bit.\n',entropy_err);
 
-% 2D Histogram: Joint PDF
-[jointPDF,~,~] = histcounts2(Lena_org,Lena_red,[m n],'Normalization','probability');
+% 1D Histogram: Original Probability
+[orgProb,~,~] = histcounts(Lena_org,1:(COL+1),'Normalization','probability');
+
+% 2D Histogram: Joint Probabiltiy
+[jointProb,~,~] = histcounts2(Lena_red,Lena_org,...
+    1:(COL+1),1:(COL+1),'Normalization','probability');
 
 % Joint Entropy
-p_logp_nan = jointPDF.*log2(jointPDF);
+p_logp_nan = jointProb.*log2(jointProb);
 p_logp = p_logp_nan(isfinite(p_logp_nan));
 joint_entropy = -sum(p_logp);
 fprintf('Joint entropy: %d bit.\n',joint_entropy);
@@ -99,10 +99,15 @@ fprintf('Joint entropy: %d bit.\n',joint_entropy);
 mi = entropy_org + entropy_red - joint_entropy;
 fprintf('Mutual information: %d bit.\n',mi);
 
+% Conditional Probability
+condProb = jointProb./orgProb;
+condProb(isnan(condProb)|isinf(condProb))=0; % all NaN and inf converted to zero
+col_sum = sum(condProb,1); % test if condProb really sums up to 1 columnwise
+
 
 %% Relationship between selcted SVs and ...
 
-numSVals = 1:10:r;
+numSVals = 1:1:r; %SVs for which the properties are calculated
 
 % ...used storage
 storageSV = m*numSVals + n*numSVals + numSVals;
@@ -132,9 +137,9 @@ for i = numSVals
     % compute entropy of error image and add to row 2 of display matrix
     entropySV(2,j) = entropy(Lena_err_loop);
     % compute joint entropy of original and compresed image
-    [jointPDF_loop,~,~] = histcounts2(Lena_org,Lena_red_loop,[m n],...
+    [jointProb_loop,~,~] = histcounts2(Lena_org,Lena_red_loop,[COL COL],...
         'Normalization','probability');
-    p_logp_nan_loop = jointPDF_loop.*log2(jointPDF_loop);
+    p_logp_nan_loop = jointProb_loop.*log2(jointProb_loop);
     p_logp_loop = p_logp_nan_loop(isfinite(p_logp_nan_loop));
     entropySV(3,j) = -sum(p_logp_loop);
     % compute mutual information of original and compressed image
@@ -146,7 +151,8 @@ end
 
 %% Figure 1
 
-figure('Name','Images and Histograms','units','normalized','outerposition',[0 0 1 1])
+fig1 = figure('Name','Images and Histograms',...
+    'units','normalized','outerposition',[0 0 1 1]);
 
 % Original image
 subplot(2,3,1)
@@ -181,19 +187,23 @@ title('Histogram of error image')
 
 %% Figure 2
 
-figure('Name','Joint Histogram','units','normalized','outerposition',[0 0 1 1])
+fig2 = figure('Name','Joint Histogram',...
+    'units','normalized','outerposition',[0 0 1 1]);
 
 % 2D Histogram: Joint PDF
-histogram2(Lena_org,Lena_red,[m n],'Normalization','probability','FaceColor','flat')
+histogram2(Lena_red,Lena_org,1:(COL+1),1:(COL+1),...
+    'Normalization','probability','FaceColor','flat')
 colorbar
 title('Joint Histogram')
+xlabel('Compressed image')
+ylabel('Original image')
 zlabel('Joint Probability')
 
 
 %% Figure 3
 
-figure('Name','Properties over selected Singular Values',...
-    'units','normalized','outerposition',[0 0 1 1])
+fig3 = figure('Name','Properties over selected Singular Values',...
+    'units','normalized','outerposition',[0 0 1 1]);
 
 % Used storage over saved SVs
 subplot(2,2,1)
@@ -224,7 +234,14 @@ ylabel('Entropies [bit]')
 title('Entropies over saved SVs')
 
 
+%% Save figures
+
+saveas(fig1, 'Results.png');
+saveas(fig2, 'Joint_Histogram.png');
+saveas(fig3, 'Analysis.png');
+
+
 %% Execution time
 
-execution_time = toc;
+execution_time = toc; % total script execution time
 fprintf('Total execution time of svd_lena_script: %d seconds.\n',execution_time);
